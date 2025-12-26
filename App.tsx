@@ -1,36 +1,43 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Post, UserProfile, Badge, Comment } from './types';
-import { MOCK_CURRENT_USER, INITIAL_POSTS, BADGES, CAROUSEL_IMAGES, APP_ICON } from './constants';
-import { PostCard } from './JD/components/PostCard.tsx';
-import { BadgeIcon } from './JD/components/BadgeIcon.ts';
-import { verifyQuote } from './services/geminiService.ts';
+import { Post, UserProfile, Comment } from './types.ts';
+import { MOCK_CURRENT_USER, INITIAL_POSTS, BADGES, CAROUSEL_IMAGES, APP_ICON } from './constants.tsx';
+import { PostCard } from './components/PostCard.tsx';
+import { BadgeIcon } from './components/BadgeIcon.tsx';
+import { verifyQuote, generateIdea } from './services/geminiService.ts';
 
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [view, setView] = useState<'feed' | 'profile' | 'wallpapers' | 'settings'>('feed');
   const [wallCategory, setWallCategory] = useState<'Minimalista' | 'Anime' | 'Paisagem'>('Minimalista');
   
-  // Banco de Dados Local (Persistência)
   const [user, setUser] = useState<UserProfile>(() => {
     const saved = localStorage.getItem('jd_user');
-    return saved ? JSON.parse(saved) : MOCK_CURRENT_USER;
+    try {
+      return saved ? JSON.parse(saved) : MOCK_CURRENT_USER;
+    } catch {
+      return MOCK_CURRENT_USER;
+    }
   });
 
   const [posts, setPosts] = useState<Post[]>(() => {
     const saved = localStorage.getItem('jd_posts');
-    return saved ? JSON.parse(saved) : INITIAL_POSTS;
+    try {
+      return saved ? JSON.parse(saved) : INITIAL_POSTS;
+    } catch {
+      return INITIAL_POSTS;
+    }
   });
 
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [newPostContent, setNewPostContent] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
 
-  // Efeito para salvar no "Banco de Dados" sempre que algo mudar
   useEffect(() => {
     localStorage.setItem('jd_user', JSON.stringify(user));
   }, [user]);
@@ -51,23 +58,37 @@ const App: React.FC = () => {
   const handlePost = async () => {
     if (!newPostContent.trim()) return;
     setIsVerifying(true);
-    const analysis = await verifyQuote(newPostContent);
-    const newPost: Post = {
-      id: `post-${Date.now()}`,
-      userId: user.id,
-      content: newPostContent,
-      type: 'quote',
-      timestamp: Date.now(),
-      likes: 0,
-      comments: [],
-      isVerified: analysis.status && analysis.score > 75
-    };
-    setPosts([newPost, ...posts]);
-    setNewPostContent('');
-    setIsVerifying(false);
+    try {
+      const analysis = await verifyQuote(newPostContent);
+      const newPost: Post = {
+        id: `post-${Date.now()}`,
+        userId: user.id,
+        content: newPostContent,
+        type: 'quote',
+        timestamp: Date.now(),
+        likes: 0,
+        comments: [],
+        isVerified: analysis.status && analysis.score > 70
+      };
+      setPosts([newPost, ...posts]);
+      setNewPostContent('');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
-  // Funções de Moderação (Apenas para o Dono)
+  const handleGenerateAI = async () => {
+    setIsGenerating(true);
+    try {
+      const idea = await generateIdea();
+      if (idea) setNewPostContent(idea.trim());
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const deletePost = (postId: string) => {
     if (window.confirm("Deseja banir esta postagem da era jurássica?")) {
       setPosts(posts.filter(p => p.id !== postId));
@@ -119,13 +140,13 @@ const App: React.FC = () => {
     setTimeout(() => {
       setIsLoggedIn(true);
       setIsVerifying(false);
-    }, 1500);
+    }, 1000);
   };
 
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0b0f1a] flex flex-col items-center justify-center p-6 text-center">
-        <div className="mb-8 animate-pulse">
+        <div className="mb-8 animate-bounce-short">
           <img src={APP_ICON} className="w-24 h-24 rounded-[2rem] shadow-2xl shadow-orange-500/20" alt="JurassicDreams Icon" />
         </div>
         <h1 className="text-4xl font-black italic tracking-tighter bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent mb-2">
@@ -212,18 +233,31 @@ const App: React.FC = () => {
                 className="w-full bg-transparent border-none focus:ring-0 text-slate-100 placeholder:text-slate-600 resize-none h-24 text-lg font-medium"
               />
               <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-800/50">
-                <div className="flex gap-5 text-slate-500 px-2">
+                <div className="flex gap-4 text-slate-500 px-2 items-center">
+                  <button 
+                    onClick={handleGenerateAI}
+                    disabled={isGenerating}
+                    className={`hover:text-yellow-400 transition-all flex items-center gap-1.5 ${isGenerating ? 'animate-pulse text-yellow-500' : ''}`}
+                    title="Gerar Ideia com IA"
+                  >
+                    <i className={`fa-solid ${isGenerating ? 'fa-dna animate-spin' : 'fa-wand-sparkles'} text-lg`}></i>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">IA Idea</span>
+                  </button>
                   <button className="hover:text-orange-400 transition-colors"><i className="fa-regular fa-image text-lg"></i></button>
-                  <button className="hover:text-orange-400 transition-colors"><i className="fa-solid fa-at text-lg"></i></button>
                 </div>
                 <button 
                   onClick={handlePost}
                   disabled={isVerifying || !newPostContent.trim()}
                   className={`px-8 py-2.5 rounded-2xl font-black text-sm transition-all shadow-xl active:scale-95 ${isVerifying ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-gradient-to-r from-orange-600 to-red-600 text-white hover:shadow-orange-500/20 hover:scale-[1.02]'}`}
                 >
-                  {isVerifying ? <i className="fa-solid fa-spinner animate-spin"></i> : 'POSTAR'}
+                  {isVerifying ? <i className="fa-solid fa-microscope animate-bounce"></i> : 'POSTAR'}
                 </button>
               </div>
+              {isVerifying && (
+                <div className="mt-2 text-[9px] text-orange-400 font-black uppercase tracking-widest animate-pulse flex items-center gap-2">
+                  <i className="fa-solid fa-shield-halved"></i> IA está analisando a autenticidade...
+                </div>
+              )}
             </div>
 
             <div className="space-y-1 pb-20">
@@ -316,11 +350,6 @@ const App: React.FC = () => {
                   <h2 className="text-2xl font-black tracking-tight uppercase tracking-tighter">Cofre de Walls</h2>
                   <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">Era: Jurássico Profundo</p>
                 </div>
-                {user.badges.includes('owner') && (
-                  <button className="bg-orange-600 hover:bg-orange-500 text-white p-3 rounded-2xl shadow-lg shadow-orange-900/20 transition-all active:scale-95">
-                     <i className="fa-solid fa-upload"></i>
-                  </button>
-                )}
               </div>
 
               <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
@@ -340,23 +369,12 @@ const App: React.FC = () => {
               {posts.filter(p => p.type === 'wallpaper' && p.category === wallCategory).map(post => (
                 <div key={post.id} className="group relative aspect-[9/16] rounded-3xl overflow-hidden shadow-2xl border border-slate-800/50 hover:border-orange-500/50 transition-all cursor-pointer">
                   <img src={post.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
-                  {isOwner && (
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); deletePost(post.id); }}
-                      className="absolute top-3 right-3 w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-xl"
-                    >
-                      <i className="fa-solid fa-trash-can text-xs"></i>
-                    </button>
-                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80" />
                   <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
                     <div>
                       <p className="text-[10px] font-black text-orange-400 uppercase">{post.category}</p>
                       <p className="text-xs text-white font-bold">@Dono</p>
                     </div>
-                    <button className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-black transition-colors">
-                      <i className="fa-solid fa-download text-[10px]"></i>
-                    </button>
                   </div>
                 </div>
               ))}
@@ -406,7 +424,7 @@ const App: React.FC = () => {
               </div>
 
               <div className="space-y-4 pt-4">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">DNA de Ambientes (Amino/Discord Style)</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">DNA de Ambientes</label>
                 <div className="grid grid-cols-2 gap-4">
                    <button 
                     onClick={() => bannerInputRef.current?.click()}
@@ -488,6 +506,8 @@ const App: React.FC = () => {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes bounceShort { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .animate-bounce-short { animation: bounceShort 2s infinite ease-in-out; }
       `}</style>
     </div>
   );

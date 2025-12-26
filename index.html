@@ -34,10 +34,9 @@
         color: #f8fafc;
         margin: 0;
         overflow-x: hidden;
-        overscroll-behavior-y: contain; /* Previne o "puxar para atualizar" do navegador */
+        overscroll-behavior-y: contain;
       }
 
-      /* Custom scrollbar */
       ::-webkit-scrollbar {
         width: 6px;
       }
@@ -52,7 +51,6 @@
         background: #f97316;
       }
 
-      /* Ajuste para Notch do iPhone */
       .pt-safe {
         padding-top: env(safe-area-inset-top);
       }
@@ -73,5 +71,6 @@
 </head>
   <body>
     <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
   </body>
 </html>

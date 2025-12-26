@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { Badge } from '../types';
+import { Badge } from '../types.ts';
 
 interface BadgeIconProps {
   badge: Badge;

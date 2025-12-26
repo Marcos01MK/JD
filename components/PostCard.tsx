@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
-import { Post, UserProfile, Comment } from '../types';
-import { BADGES } from '../../constants';
-import { BadgeIcon } from './BadgeIcon';
+import { Post, UserProfile } from '../types.ts';
+import { BADGES } from '../constants.tsx';
+import { BadgeIcon } from './BadgeIcon.tsx';
 
 interface PostCardProps {
   post: Post;
