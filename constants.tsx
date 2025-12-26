@@ -1,5 +1,5 @@
 
-import { Badge, BadgeTier, UserProfile, Post } from './types';
+import { Badge, BadgeTier, UserProfile, Post } from './types.ts';
 
 /** 
  * 🦖 GUIA DE PERSONALIZAÇÃO JURÁSSICA 🦖
