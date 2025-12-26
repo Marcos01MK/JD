@@ -1,0 +1,7 @@
+{
+  "name": "JurassicDreams",
+  "description": "Uma plataforma social para frases, desabafos e personalização extrema com tema jurássico.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
